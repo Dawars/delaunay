@@ -1,14 +1,150 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="en-us">
 <head>
-    <meta charset="UTF-8">
-    <title>Delaunay triangulation with constraint</title>
-    <script src="delaunay.js"></script>
-    <script>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <style>
+        body {
+            font-family: Monospaced;
+            background-color: #111;
+            color: #fff;
+            margin: 0px;
+            overflow: hidden;
+        }
+    </style>
 
-    </script>
+
+    <title>Delaunay triangulation with constraint</title>
 </head>
 <body>
+<script src="js/three.js"></script>
+<script src="js/Detector.js"></script>
+<script src="js/libs/stats.min.js"></script>
+<script src="js/libs/dat.gui.min.js"></script>
+<script src="js/libs/inflate.min.js"></script>
+<script src="js/loaders/FBXLoader.js"></script>
+<script src="js/controls/OrbitControls.js"></script>
 
+<script data-cfasync="false" async src="delaunay.js"></script>
+<div id="container">
+    <canvas id="canvasName"></canvas>
+</div>
+
+<script>
+
+    // init without WASM
+    let SCREEN_WIDTH = window.innerWidth;
+    let SCREEN_HEIGHT = window.innerHeight;
+    let container, stats, controls;
+    let camera, scene, renderer;
+
+    let gui;
+    let clock = new THREE.Clock();
+
+
+    if (!Detector.webgl) Detector.addGetWebGLMessage();
+
+    container = document.getElementById('container');
+    // document.body.appendChild(container);
+
+
+    window.onload = function () {
+        DelaunayModule().then(initModule);
+    };
+
+
+    function initModule(Module) {
+        camera = new THREE.PerspectiveCamera(40, SCREEN_WIDTH / SCREEN_HEIGHT, 1, 1000);
+        camera.position.y = 150;
+        camera.zoom = 2;
+        camera.updateProjectionMatrix();
+
+        const createContext = (id) => {
+            const canvas = document.getElementById(id);
+            // const context = canvas.getContext("webgl");
+            const idBuffer = Module.allocateUTF8(id);
+            Module.ccall("createContext", null, ["number"], [idBuffer]);
+        };
+
+
+        // renderer
+        renderer = new THREE.WebGLRenderer({antialias: true, canvas: document.getElementById('canvasName')});
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setSize(SCREEN_WIDTH, SCREEN_HEIGHT);
+        // container.appendChild(renderer.domElement);
+
+
+        createContext('canvasName');
+
+        let gl = renderer.context;
+
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x050505);
+
+        let gridHelper = new THREE.GridHelper(10, 10);
+        scene.add(gridHelper);
+
+        // materials
+        let material = new THREE.MeshStandardMaterial({
+            color: 0xff5500,
+            flatShading: true,
+            side: THREE.DoubleSide,
+            skinning: true
+        });
+
+        // lights
+        let ambientLight = new THREE.AmbientLight(0x222222);
+        scene.add(ambientLight);
+        let light1 = new THREE.DirectionalLight(0xffffff, 0.5);
+        light1.position.set(1, -1, 1);
+        scene.add(light1);
+        let light2 = new THREE.DirectionalLight(0xffffff, 1);
+        light2.position.set(0, 1, 0);
+        scene.add(light2);
+
+        let axis = new THREE.AxesHelper(1);
+        axis.position.set(0, 5, 0);
+        scene.add(axis);
+
+        // mano params
+        createScene();
+        draw();
+
+
+        function createScene() {
+
+            window.addEventListener('resize', onWindowResize, false);
+
+            // stats
+            stats = new Stats();
+            container.appendChild(stats.domElement);
+
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.target.set(0, 0, 0);
+            controls.update();
+            // controls.addEventListener('change', draw);
+        }
+
+        function onWindowResize(event) {
+            SCREEN_WIDTH = window.innerWidth;
+            SCREEN_HEIGHT = window.innerHeight;
+            renderer.setSize(SCREEN_WIDTH, SCREEN_HEIGHT);
+            camera.aspect = SCREEN_WIDTH / SCREEN_HEIGHT;
+            camera.updateProjectionMatrix();
+        }
+
+        function draw() {
+            requestAnimationFrame(draw);
+            // refreshGeometry(handGeom);
+
+            renderer.clear();
+            renderer.render(scene, camera);
+            stats.update();
+        }
+
+    }
+</script>
 </body>
 </html>
